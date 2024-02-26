@@ -60,15 +60,24 @@ void TestThreadPoolSort() {
 //    #endif
 //#endif
 
+void TestFormat() {
+    std::string s = fmt::format("The answer is {}.", 42);
+
+    s = fmt::format("{0}{1}{0}", "abra", "cad");
+
+    std::cout << s << std::endl;
+
+    fmt::print("{0:-^10}\n{1:-^10}", "hello", "world");
+
+}
+
 //************************************************* fmt ****************************************//
 
 int main()
 {
     //TestThreadPoolSort();
 
-    std::string s = fmt::format("The answer is {}.", 42);
-
-    std::cout << s << std::endl;
+    TestFormat();
 
     return 0;
 }
