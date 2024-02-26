@@ -2,11 +2,9 @@
 #include <iostream>
 #include <list>
 
-
+//************************************************* ThreadPool *********************************//
 #include "ThreadPool.h"
 
-
-//************************************************* ThreadPool *********************************//
 template<typename T>
 std::list<T>pool_thread_quick_sort(std::list<T> input) {
     if (input.empty())
@@ -41,10 +39,21 @@ void TestThreadPoolSort() {
 
 //************************************************* ThreadPool *********************************//
 
+
+
+#define FMT_HEADER_ONLY // (#define FMT_HEADER_ONLY)是强制性的，它告诉编译器也要编译fmt头文件
+#include <fmt/core.h>
+
+
+
+
 int main()
 {
-    TestThreadPoolSort();
+    //TestThreadPoolSort();
 
+    std::string s = fmt::format("The answer is {}.", 42);
+
+    std::cout << s << std::endl;
 
     return 0;
 }
