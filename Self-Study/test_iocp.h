@@ -8,6 +8,9 @@
 #pragma comment(lib, "MsWSock.Lib")
 
 #define BUFF_SIZE 1024
+#define THREAD_COUNT 4
+#define START_POST_ACCEPTEX 4
+#define PORT 8989
 
 enum IO_TYPE {
 	IO_ACCEPT,
@@ -30,9 +33,15 @@ typedef struct OverlappedPerIo {
 	char buffer[BUFF_SIZE];
 } *LPOverlappedPerIO;
 
+
+// 投递请求
 void PostAcceptEx(SOCKET listenSocket);
 
+// 每一个工作线程中要处理的事情
 DWORD WINAPI workerThread(LPVOID lpParam);
 
+// 初始化服务端监听socket，使用重叠IO
 int initServer(ServerParams& params);
+
+void test_iocp_demo();
 

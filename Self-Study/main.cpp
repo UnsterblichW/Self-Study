@@ -88,8 +88,7 @@ int main()
 
     //TestFormat();
 
-    ServerParams p;
-    initServer(p);
+    test_iocp_demo();
 
 
     return 0;

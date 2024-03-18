@@ -1,6 +1,7 @@
 #include "test_iocp.h"
 #include <iostream>
 #include <cstring>
+#include <thread>
 
 void PostAcceptEx(SOCKET listenSocket) {
 	SOCKET acceptSock = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
@@ -12,7 +13,14 @@ void PostAcceptEx(SOCKET listenSocket) {
 		closesocket(listenSocket);
 		return;
 	}
-	ZeroMemory(overlp->buffer, BUFF_SIZE);
+
+	//ZeroMemory(overlp->buffer, BUFF_SIZE); 
+	// 如果只清空overlp->buffer，会发现下面AcceptEx()一直失败，然后GetLastError()发现是6，
+	// ERROR_INVALID_HANDLE 6 (0x6) 该句柄无效。
+	// 所以是overlp->overlapped出现了问题，overlapped是一个OVERLAPPED，而OVERLAPPED::hEvent这个句柄没有被清空
+	// 所以正确的做法应该是清空整个overlp
+	ZeroMemory(overlp, sizeof(OverlappedPerIo));
+
 	overlp->socket = acceptSock;
 	overlp->wsaBuf.buf = overlp->buffer;
 	overlp->wsaBuf.len = BUFF_SIZE;
@@ -29,10 +37,11 @@ void PostAcceptEx(SOCKET listenSocket) {
 		sizeof(SOCKADDR_IN) + 16,
 		sizeof(SOCKADDR_IN) + 16, 
 		&dwByteRecv,
-		(LPOVERLAPPED)&overlp->overlapped)) {
+		(LPOVERLAPPED)overlp)) {
 		if (GetLastError() == ERROR_IO_PENDING) {
 			break;
 		}
+		std::cout << WSAGetLastError() << std::endl;
 	}
 }
 
@@ -67,6 +76,7 @@ DWORD WINAPI workerThread(LPVOID lpParam) {
 		}
 		switch (overlp->type) {
 		case IO_ACCEPT: {
+			PostAcceptEx(listenSocket);
 
 			// SO_UPDATE_ACCEPT_CONTEXT : Updates the accepting socket with the context of the listening socket.
 			setsockopt(overlp->socket, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, (char*)&(listenSocket), sizeof(SOCKET));
@@ -121,10 +131,7 @@ DWORD WINAPI workerThread(LPVOID lpParam) {
 			}
 		}
 		break;
-
-
 		}
-
 	}
 
 }
@@ -143,7 +150,7 @@ int initServer(ServerParams& params) {
 			SOCKADDR_IN address;
 			address.sin_family = AF_INET;
 			address.sin_addr.s_addr = INADDR_ANY;
-			address.sin_port = htons(8989);
+			address.sin_port = htons(PORT);
 			ret = bind(params.listenSocket, (const sockaddr*)&address, sizeof(address));
 			if (ret == 0) {
 				// 创建 I/O 完成端口
@@ -165,4 +172,32 @@ int initServer(ServerParams& params) {
 	WSACleanup();
 	if (ret == 0) ret == -1;
 	return ret;
+}
+
+
+void test_iocp_demo() {
+	ServerParams pms;
+	int ret;
+	ret = initServer(pms);
+	if (ret != 0) {
+		std::cout << "initServer Error" << std::endl;
+		return;
+	}
+
+	// 先创建工作线程来等待下面PostAcceptEx将会投递来的任务
+	for (int i = 0; i < THREAD_COUNT; i++) {
+		// 其实这里可以用C++11之后就给出的支持多平台的接口std::thread()，但为了还原windows原汁原味，还是用windows自家的CreateThread
+		CreateThread(NULL, 0, workerThread, &pms, 0, NULL);
+	}
+
+	for (int i = 0; i < START_POST_ACCEPTEX; i++) {
+		PostAcceptEx(pms.listenSocket);
+	}
+
+	std::cin.get();
+
+	closesocket(pms.listenSocket);
+	CloseHandle(pms.completionPort);
+	WSACleanup();
+
 }
