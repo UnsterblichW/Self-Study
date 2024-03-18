@@ -1,4 +1,6 @@
 #include "test_iocp.h"
+#include <iostream>
+#include <cstring>
 
 void PostAcceptEx(SOCKET listenSocket) {
 	SOCKET acceptSock = WSASocket(AF_INET, SOCK_STREAM, 0, NULL, 0, WSA_FLAG_OVERLAPPED);
@@ -10,21 +12,121 @@ void PostAcceptEx(SOCKET listenSocket) {
 		closesocket(listenSocket);
 		return;
 	}
-	ZeroMemory(overlp->buff, BUFF_SIZE);
+	ZeroMemory(overlp->buffer, BUFF_SIZE);
 	overlp->socket = acceptSock;
-	overlp->wsaBuf.buf = overlp->buff;
+	overlp->wsaBuf.buf = overlp->buffer;
 	overlp->wsaBuf.len = BUFF_SIZE;
 	overlp->type = IO_ACCEPT;
 
 	DWORD dwByteRecv = 0;
-	AcceptEx(listenSocket,
+
+	// AcceptEx 的最后一个参数 LPOVERLAPPED lpOverlapped，我们传入了overlp->overlapped，
+	// 这里发生了用户态到内核态的转换，overlp->overlapped会在内核态设置数据，然后将会通过 GetQueuedCompletionStatus() 把数据取出
+	while (false == AcceptEx(listenSocket,
 		acceptSock,
 		overlp->wsaBuf.buf,
 		0,
 		sizeof(SOCKADDR_IN) + 16,
 		sizeof(SOCKADDR_IN) + 16, 
 		&dwByteRecv,
-		(LPOVERLAPPED)&overlp->overlapped);
+		(LPOVERLAPPED)&overlp->overlapped)) {
+		if (GetLastError() == ERROR_IO_PENDING) {
+			break;
+		}
+	}
+}
+
+
+DWORD WINAPI workerThread(LPVOID lpParam) {
+	// LPVOID: A pointer to any type. 
+	ServerParams* pms = reinterpret_cast<ServerParams*>(lpParam);
+	HANDLE completionPort = pms->completionPort;
+	SOCKET listenSocket = pms->listenSocket;
+
+	DWORD bytesTrans;
+	ULONG_PTR comletionKey;
+	LPOverlappedPerIO overlp = nullptr;
+
+	int ret = 0;
+	while (true) {
+		// 等着从completionPort这个IO完成端口里面拿出来数据，如果与completionPort端口相关联IO操作还没做完（pending状态），那就等着
+		BOOL result = GetQueuedCompletionStatus(completionPort,
+			&bytesTrans,
+			&comletionKey,
+			(LPOVERLAPPED*)&overlp, // 内核态->用户态
+			INFINITE); // 一直等，一直阻塞，永不超时。 如果填 0 的话就是如果没有IO操作就立即超时。
+		if (!result) {
+			if ((GetLastError() == WAIT_TIMEOUT) || (GetLastError() == ERROR_NETNAME_DELETED)) {
+				std::cout << "socket disconnection:" << overlp->socket << std::endl;
+				closesocket(overlp->socket);
+				delete overlp;
+				continue;
+			}
+			std::cout << "GetQueuedCompletionStatus failed" << std::endl;
+			return 0;
+		}
+		switch (overlp->type) {
+		case IO_ACCEPT: {
+
+			// SO_UPDATE_ACCEPT_CONTEXT : Updates the accepting socket with the context of the listening socket.
+			setsockopt(overlp->socket, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, (char*)&(listenSocket), sizeof(SOCKET));
+
+			ZeroMemory(overlp->buffer, BUFF_SIZE);
+			overlp->type = IO_RECV;
+			overlp->wsaBuf.buf = overlp->buffer;
+			overlp->wsaBuf.len = BUFF_SIZE;
+			CreateIoCompletionPort((HANDLE)overlp->socket, completionPort, NULL, 0);
+
+			DWORD dwRecv = 0, dwFlag = 0;
+			ret = WSARecv(overlp->socket, &overlp->wsaBuf, 1, &dwRecv, &dwFlag, &(overlp->overlapped), 0);
+			if (ret == SOCKET_ERROR && WSAGetLastError() != WSA_IO_PENDING) {
+				std::cout << "WSARecv failed:" << WSAGetLastError() << std::endl;
+			}
+		}
+		break;
+		case IO_RECV:
+		{
+			std::cout << "happed IO_RECV:" << bytesTrans << std::endl;
+			if (bytesTrans == 0) {
+				std::cout << "socket disconnection:" << overlp->socket << std::endl;
+				closesocket(overlp->socket);
+				delete overlp;
+				continue;
+			}
+
+			std::cout << "recved data:" << overlp->buffer << std::endl;
+
+			ZeroMemory(&overlp->overlapped, sizeof(OVERLAPPED));
+			overlp->type = IO_SEND;
+
+			char str[22] = "response from server\n";
+			overlp->wsaBuf.buf = str;
+			overlp->wsaBuf.len = 22;
+
+			DWORD dwSend = 0;
+			ret = WSASend(overlp->socket, &overlp->wsaBuf, 1, &dwSend, 0, &(overlp->overlapped), 0);
+			if (ret == SOCKET_ERROR && WSAGetLastError() != WSA_IO_PENDING) {
+				std::cout << "WSARecv failed:" << WSAGetLastError() << std::endl;
+			}
+		}
+		break;
+		case IO_SEND:
+		{
+			std::cout << "happed IO_SEND:" << bytesTrans << std::endl;
+			if (bytesTrans == 0) {
+				std::cout << "socket disconnection:" << overlp->socket << std::endl;
+				closesocket(overlp->socket);
+				delete overlp;
+				continue;
+			}
+		}
+		break;
+
+
+		}
+
+	}
+
 }
 
 

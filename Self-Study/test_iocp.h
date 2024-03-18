@@ -27,10 +27,12 @@ typedef struct OverlappedPerIo {
 	SOCKET socket;
 	WSABUF wsaBuf;
 	IO_TYPE type;
-	char buff[BUFF_SIZE];
+	char buffer[BUFF_SIZE];
 } *LPOverlappedPerIO;
 
 void PostAcceptEx(SOCKET listenSocket);
+
+DWORD WINAPI workerThread(LPVOID lpParam);
 
 int initServer(ServerParams& params);
 
