@@ -38,7 +38,7 @@ void PostAcceptEx(SOCKET listenSocket) {
 		sizeof(SOCKADDR_IN) + 16, 
 		&dwByteRecv,
 		(LPOVERLAPPED)overlp)) {
-		if (GetLastError() == ERROR_IO_PENDING) {
+		if (GetLastError() == WSA_IO_PENDING) {
 			break;
 		}
 		std::cout << WSAGetLastError() << std::endl;
