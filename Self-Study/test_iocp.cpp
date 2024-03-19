@@ -37,7 +37,7 @@ void PostAcceptEx(SOCKET listenSocket) {
 		sizeof(SOCKADDR_IN) + 16,
 		sizeof(SOCKADDR_IN) + 16, 
 		&dwByteRecv,
-		&overlp->overlapped)) {
+		(LPOVERLAPPED)&overlp)) {
 		if (WSAGetLastError() == WSA_IO_PENDING) {
 			break;
 		}
