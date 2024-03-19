@@ -37,8 +37,8 @@ void PostAcceptEx(SOCKET listenSocket) {
 		sizeof(SOCKADDR_IN) + 16,
 		sizeof(SOCKADDR_IN) + 16, 
 		&dwByteRecv,
-		(LPOVERLAPPED)overlp)) {
-		if (GetLastError() == WSA_IO_PENDING) {
+		&overlp->overlapped)) {
+		if (WSAGetLastError() == WSA_IO_PENDING) {
 			break;
 		}
 		std::cout << WSAGetLastError() << std::endl;
@@ -153,18 +153,19 @@ int initServer(ServerParams& params) {
 			address.sin_port = htons(PORT);
 			ret = bind(params.listenSocket, (const sockaddr*)&address, sizeof(address));
 			if (ret == 0) {
-				// 创建 I/O 完成端口
-				params.completionPort = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0);
-				if (params.completionPort != NULL) {
-					// 把 监听端口 和 I/O 完成端口 关联在一起，此后监听端口就可以接收到来自其他地方的IO事件
-					if (NULL != CreateIoCompletionPort((HANDLE)params.listenSocket, params.completionPort, NULL, 0)) {
-						return 0;
+				ret = listen(params.listenSocket, SOMAXCONN);
+				if (ret == 0) {
+					// 创建 I/O 完成端口
+					params.completionPort = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0);
+					if (params.completionPort != NULL) {
+						// 把 监听端口 和 I/O 完成端口 关联在一起，此后监听端口就可以接收到来自其他地方的IO事件
+						if (NULL != CreateIoCompletionPort((HANDLE)params.listenSocket, params.completionPort, NULL, 0)) {
+							return 0;
+						}
+						CloseHandle(params.completionPort);
 					}
-					CloseHandle(params.completionPort);
 				}
 			}
-
-			return 0;
 		}
 		closesocket(params.listenSocket);
 	}

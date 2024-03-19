@@ -4,6 +4,7 @@
 #include <MSWSock.h>
 #include <stdio.h>
 
+// 下面这样写是包含静态库的手写方式，当然也可以在vs项目中的链接器目录那里添加，这两种方式是等价的
 #pragma comment(lib, "Ws2_32.lib")
 #pragma comment(lib, "MsWSock.Lib")
 
