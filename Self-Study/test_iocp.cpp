@@ -37,8 +37,9 @@ void PostAcceptEx(SOCKET listenSocket) {
 		sizeof(SOCKADDR_IN) + 16,
 		sizeof(SOCKADDR_IN) + 16, 
 		&dwByteRecv,
-		(LPOVERLAPPED)&overlp)) {
+		(LPOVERLAPPED)overlp)) {
 		if (WSAGetLastError() == WSA_IO_PENDING) {
+			std::cout << "AcceptEx posted~!" << std::endl;
 			break;
 		}
 		std::cout << WSAGetLastError() << std::endl;
@@ -54,7 +55,7 @@ DWORD WINAPI workerThread(LPVOID lpParam) {
 
 	DWORD bytesTrans;
 	ULONG_PTR comletionKey;
-	LPOverlappedPerIO overlp = nullptr;
+	LPOverlappedPerIO overlp = nullptr;  // 最好是赋初值nullptr，不然下面要是出了什么问题的话，在 delete overlp 的时候，删一个未赋值的指针是UB
 
 	int ret = 0;
 	while (true) {
