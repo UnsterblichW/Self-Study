@@ -78,7 +78,8 @@ DWORD WINAPI workerThread(LPVOID lpParam) {
 		switch (overlp->type) {
 		case IO_ACCEPT: {
 			PostAcceptEx(listenSocket);
-
+			
+			// 注意，这里overlp->socket其实就是在之前通过 PostAcceptEx() 往 AcceptEx 里面设置的 acceptSock，也即是新建立连接的客户端socket
 			// SO_UPDATE_ACCEPT_CONTEXT : Updates the accepting socket with the context of the listening socket.
 			setsockopt(overlp->socket, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, (char*)&(listenSocket), sizeof(SOCKET));
 
@@ -86,8 +87,10 @@ DWORD WINAPI workerThread(LPVOID lpParam) {
 			overlp->type = IO_RECV;
 			overlp->wsaBuf.buf = overlp->buffer;
 			overlp->wsaBuf.len = BUFF_SIZE;
-			CreateIoCompletionPort((HANDLE)overlp->socket, completionPort, NULL, 0);
+			// 每新连接一个客户端socket进来后，就把它和已有的iocp关联在一起，将来就可以接受到这个客户端socket上发生的io事件了
+			CreateIoCompletionPort((HANDLE)overlp->socket, completionPort, NULL, 0); 
 
+			// 正因为下面通过WSARecv往客户端socket投递了接收数据的事件，所以之后才可能出现case IO_RECV的情况
 			DWORD dwRecv = 0, dwFlag = 0;
 			ret = WSARecv(overlp->socket, &overlp->wsaBuf, 1, &dwRecv, &dwFlag, &(overlp->overlapped), 0);
 			if (ret == SOCKET_ERROR && WSAGetLastError() != WSA_IO_PENDING) {
