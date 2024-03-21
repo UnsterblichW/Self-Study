@@ -131,10 +131,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp" />
+    <ClCompile Include="IocpServerex.cpp" />
+    <ClCompile Include="main.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="test_iocp.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="IocpServer.h" />
     <ClInclude Include="test_iocp.h" />
     <ClInclude Include="ThreadPool.h" />
   </ItemGroup>
