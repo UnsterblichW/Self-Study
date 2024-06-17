@@ -24,6 +24,9 @@
     <ClCompile Include="IocpServerex.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="Threading\ProcessPriority.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ThreadPool.h">
@@ -35,5 +38,25 @@
     <ClInclude Include="IocpServer.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Threading\ProducerConsumerQueue.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Threading\MPSCQueue.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Threading\ProcessPriority.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Threading\LockedQueue.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Self-Study.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>
